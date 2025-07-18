@@ -73,13 +73,18 @@
             align-items: center;
             margin-bottom: 10px;
         }
-        .material-row input {
+        .material-row input[type="number"] {
             flex: 1;
             margin-right: 10px;
         }
         .material-row select {
             flex: 2;
             margin-right: 10px;
+        }
+        .material-row .manual-item {
+            flex: 2;
+            margin-right: 10px;
+            display: none;
         }
         .material-row button {
             background-color: #cc0000;
@@ -122,72 +127,73 @@
     <div class="non-printable">
         <h1>Lumber Order App</h1>
         <div class="tab-navigation">
+            <button class="tab-button" onclick="openTab('incoming')">Incoming</button>
             <button class="tab-button active" onclick="openTab('order')">Order</button>
+            <button class="tab-button" onclick="openTab('history')">History</button>
             <button class="tab-button" onclick="openTab('approval')">Approval</button>
-            <button class="tab-button" onclick="openTab('incoming')">Approval</button>
-            <button class="tab-navigation">
-                <button class="tab-button active" onclick="openTab('order')">Order</button>
-                <button class="tab-button" onclick="openTab('approval')">Approval</button>
-                <button class="tab-button" onclick="openTab('incoming')">Incoming</button>
-                <button class="tab-button" onclick="openTab('history')">History</button>
-                <button class="tab-button" onclick="openTab('settings')">Settings</button>
-            </div>
+            <button class="tab-button" onclick="openTab('settings')">Settings</button>
+        </div>
 
-            <!-- Order Tab: Create Order -->
-            <div id="order-tab" class="tab-content active">
-                <h2>Create New Order</h2>
-                <div class="order-form">
-                    <select id="order-set">
-                        <option value="">Select Set</option>
-                        <!-- Populated dynamically -->
-                    </select>
-                    <div id="materials-container">
-                        <!-- Dynamic rows -->
-                    </div>
-                    <button onclick="addRow('materials-container')">Add Item</button>
-                    <button onclick="createOrder()">Submit</button>
+        <!-- Incoming Tab: Ordered and In Shipment -->
+        <div id="incoming-tab" class="tab-content">
+            <h2>Incoming Orders</h2>
+            <div id="incoming-list"></div>
+        </div>
+
+        <!-- Order Tab: Create Order -->
+        <div id="order-tab" class="tab-content active">
+            <h2>Create New Order</h2>
+            <div class="order-form">
+                <select id="order-set">
+                    <option value="">Select Set</option>
+                    <!-- Populated dynamically -->
+                </select>
+                <div id="materials-container">
+                    <!-- Dynamic rows -->
                 </div>
-            </div>
-
-            <!-- Approval Tab: Pending Orders -->
-            <div id="approval-tab" class="tab-content">
-                <h2>Approval Pending Orders</h2>
-                <div id="approval-list"></div>
-            </div>
-
-            <!-- Incoming Tab: Ordered and In Shipment -->
- -->
-            <div id="incoming-tab" class="tab-content">
-                <h2>Incoming Orders</h2>
-                <div id="incoming-list"></div>
-            </div>
-
-            <!-- History Tab: Delivered Orders -->
-            <div id="history-tab" class="tab-content">
-                <h2>Order History</h2>
-                <div id="history-list"></div>
-            </div>
-
-            <!-- Settings Tab: Manage Sets and Items -->
-            <div id="settings-tab" class="tab-content">
-                <h2>Settings</h2>
-                <div class="settings-form">
-                    <h3>Manage Sets</h3>
-                    <input type="text" id="new-set" placeholder="New Set Name">
-                    <button onclick="addSet()">Add Set</button>
-                    <div id="set-list"></div>
-                    <h3>Manage Items (Receiving)</h3>
-                    <input type="text" id="new-item" placeholder="New Item (e.g., 2x4 Lumber)">
-                    <button onclick="addItem()">Add Item</button>
-                    <div id="item-list"></div>
-                </div>
+                <button onclick="addRow('materials-container')">Add Item</button>
+                <button onclick="createOrder()">Submit</button>
             </div>
         </div>
 
-        <!-- Printable Order Form -->
-        <div id="printable-order" class="printable"></div>
+        <!-- History Tab: Delivered Orders -->
+        <div id="history-tab" class="tab-content">
+            <h2>Order History</h2>
+            <div id="history-list"></div>
+        </div>
 
-        <script>
+        <!-- Approval Tab: Pending Orders -->
+        <div id="approval-tab" class="tab-content">
+            <h2>Approval Pending Orders</h2>
+            <div id="approval-list"></div>
+        </div>
+
+        <!-- Settings Tab: Manage Sets, Items, and People -->
+        <div id="settings-tab" class="tab-content">
+            <h2>Settings</h2>
+            <div class="settings-form">
+                <h3>Manage Sets</h3>
+                <input type="text" id="new-set" placeholder="New Set Name">
+                <button onclick="addSet()">Add Set</button>
+                <div id="set-list"></div>
+
+                <h3>Manage Items (Receiving)</h3>
+                <input type="text" id="new-item" placeholder="New Item (e.g., 2x4 Lumber)">
+                <button onclick="addItem()">Add Item</button>
+                <div id="item-list"></div>
+
+                <h3>Manage People</h3>
+                <input type="text" id="new-person" placeholder="New Person Name">
+                <button onclick="addPerson()">Add Person</button>
+                <div id="person-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable Order Form -->
+    <div id="printable-order" class="printable"></div>
+
+    <script>
         // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyCRbUS6L7O4I_gGaaCmCyHi7wt_WgMwZFc",
@@ -205,11 +211,13 @@
         // Global variables
         let sets = [];
         let items = [];
+        let people = [];
 
         // Load data on page load
         window.onload = function() {
             loadSets();
             loadItems();
+            loadPeople();
             loadOrders();
             openTab('order'); // Default tab
         };
@@ -222,7 +230,7 @@
 
             const buttons = document.querySelectorAll('.tab-button');
             buttons.forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`[onclick="openTab('${tabId}')]`).classList.add('active');
+            document.querySelector(`[onclick="openTab('${tabId}')"]`).classList.add('active');
         }
 
         // Load sets
@@ -267,6 +275,7 @@
                     html += `<p>${data.name} <button onclick="deleteItem('${doc.id}')">Delete</button></p>`;
                     optionHtml += `<option value="${data.name}">${data.name}</option>`;
                 });
+                optionHtml += `<option value="Other">Other</option>`;
                 document.getElementById('item-list').innerHTML = html;
                 // Store optionHtml for use in addRow
                 window.itemOptions = optionHtml;
@@ -286,19 +295,59 @@
             db.collection('items').doc(id).delete();
         }
 
+        // Load people
+        function loadPeople() {
+            db.collection('people').orderBy('name').onSnapshot(snapshot => {
+                people = [];
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    people.push({id: doc.id, name: data.name});
+                    html += `<p>${data.name} <button onclick="deletePerson('${doc.id}')">Delete</button></p>`;
+                });
+                document.getElementById('person-list').innerHTML = html;
+            });
+        }
+
+        // Add person
+        function addPerson() {
+            const name = document.getElementById('new-person').value;
+            if (!name) return;
+            db.collection('people').add({name: name});
+            document.getElementById('new-person').value = '';
+        }
+
+        // Delete person
+        function deletePerson(id) {
+            db.collection('people').doc(id).delete();
+        }
+
         // Add material row
-        function addRow(containerId, quantity = 1, item = '', isEdit = false) {
+        function addRow(containerId, quantity = 1, item = '', manualItem = '', isEdit = false) {
             const container = document.getElementById(containerId);
             const row = document.createElement('div');
             row.className = 'material-row';
             row.innerHTML = `
                 <input type="number" value="${quantity}" min="1" placeholder="Quantity">
-                <select class="item-select">${window.itemOptions}</select>
+                <select class="item-select" onchange="toggleManualInput(this)">${window.itemOptions}</select>
+                <input type="text" class="manual-item" placeholder="Manual Item Name" value="${manualItem}">
                 <button onclick="removeRow(this)">Remove</button>
             `;
             container.appendChild(row);
             if (item) {
                 row.querySelector('select').value = item;
+                toggleManualInput(row.querySelector('select'));
+            }
+        }
+
+        // Toggle manual input
+        function toggleManualInput(select) {
+            const manualInput = select.nextElementSibling;
+            if (select.value === 'Other') {
+                manualInput.style.display = 'block';
+            } else {
+                manualInput.style.display = 'none';
+                manualInput.value = '';
             }
         }
 
@@ -313,8 +362,12 @@
             const materials = [];
             rows.forEach(row => {
                 const quantity = parseInt(row.querySelector('input[type="number"]').value);
-                const item = row.querySelector('select').value;
-                if (quantity && item) {
+                let item = row.querySelector('select').value;
+                const manualItem = row.querySelector('.manual-item').value;
+                if (item === 'Other' && manualItem) {
+                    item = manualItem;
+                }
+                if (quantity && item && item !== 'Other') {
                     materials.push({quantity, item});
                 }
             });
@@ -366,7 +419,7 @@
                             </div>`;
                         // Load existing materials into editable rows
                         setTimeout(() => {
-                            data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item, true));
+                            data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
                         }, 0);
                     } else if (data.status === 'ordered' || data.status === 'in shipment') {
                         incomingHtml += `
