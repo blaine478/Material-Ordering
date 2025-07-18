@@ -97,11 +97,22 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .receive-section {
+        .materials-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .materials-list li {
+            margin-bottom: 5px;
+        }
+        .materials-list li strong {
+            font-weight: bold;
+            color: #6b8e23;
+        }
+        .receive-section, .edit-section {
             display: none;
             margin-top: 10px;
         }
-        .receive-section.active {
+        .receive-section.active, .edit-section.active {
             display: block;
         }
         .printable {
@@ -131,6 +142,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- DOMPurify for secure HTML rendering in jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
 <body>
     <div class="non-printable">
@@ -161,6 +174,7 @@
                     <option value="">Select Person the Order Goes To</option>
                     <!-- Populated dynamically -->
                 </select>
+                <input type="date" id="order-date" placeholder="Order Date">
                 <div id="materials-container">
                     <!-- Dynamic rows -->
                 </div>
@@ -430,14 +444,16 @@
         function createOrder() {
             const set = document.getElementById('order-set').value;
             const person = document.getElementById('order-person').value;
+            const orderDate = document.getElementById('order-date').value;
             const materials = collectMaterials('materials-container');
-            if (!set || !person || materials.length === 0) {
-                console.log('Please select set, person, and add at least one item');
+            if (!set || !person || !orderDate || materials.length === 0) {
+                console.log('Please fill all fields and add at least one item');
                 return;
             }
             db.collection('orders').add({
                 set: set,
                 person: person,
+                orderDate: orderDate,
                 materials: materials,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -446,6 +462,7 @@
                 // Clear form
                 document.getElementById('order-set').value = '';
                 document.getElementById('order-person').value = '';
+                document.getElementById('order-date').value = '';
                 document.getElementById('materials-container').innerHTML = '';
             }).catch(error => console.error(error.message));
         }
@@ -461,19 +478,22 @@
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         const id = doc.id;
-                        let materialsHtml = data.materials.map(m => `${m.quantity} x ${m.item}`).join('<br>');
+                        let materialsList = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
                         let receivedByHtml = data.receivedBy ? `<p><strong>Received By:</strong> ${data.receivedBy}</p>` : '';
+                        let dateHtml = data.orderDate ? `<p><strong>Date:</strong> ${data.orderDate}</p>` : '';
 
                         if (data.status === 'pending') {
                             approvalHtml += `
                                 <div class="order-item">
                                     <p><strong>Set:</strong> <input type="text" value="${data.set}" id="edit-set-${id}"></p>
                                     <p><strong>Person:</strong> <input type="text" value="${data.person}" id="edit-person-${id}"></p>
+                                    <p><strong>Date:</strong> <input type="date" value="${data.orderDate}" id="edit-date-${id}"></p>
                                     <p><strong>Materials:</strong></p>
                                     <div id="edit-materials-${id}"></div>
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsHtml}', '${data.status}', '${receivedByHtml}')">Print PDF</button>
+                                    <button onclick="deleteOrder('${id}')">Delete</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -483,26 +503,57 @@
                                 <div class="order-item">
                                     <p><strong>Set:</strong> ${data.set}</p>
                                     <p><strong>Person:</strong> ${data.person}</p>
-                                    <p><strong>Materials:</strong> ${materialsHtml}</p>
+                                    ${dateHtml}
+                                    <p><strong>Materials:</strong></p>
+                                    <ul class="materials-list">${materialsList}</ul>
                                     <p><strong>Status:</strong> ${data.status}</p>
-                                    <button onclick="updateStatus('${id}', 'in shipment')">Mark as In Shipment</button>
                                     <button onclick="showReceiveSection('${id}')">Received</button>
                                     <div id="receive-${id}" class="receive-section">
                                         <select id="receive-person-${id}">${window.personOptions}</select>
                                         <button onclick="confirmReceive('${id}')">Confirm Receive</button>
                                     </div>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsHtml}', '${data.status}', '${receivedByHtml}')">Print PDF</button>
+                                    <button onclick="showEditSection('${id}')">Edit</button>
+                                    <div id="edit-${id}" class="edit-section">
+                                        <input type="text" id="edit-set-inc-${id}" value="${data.set}">
+                                        <input type="text" id="edit-person-inc-${id}" value="${data.person}">
+                                        <input type="date" id="edit-date-inc-${id}" value="${data.orderDate}">
+                                        <div id="edit-materials-inc-${id}"></div>
+                                        <button onclick="addRow('edit-materials-inc-${id}')">Add Item Row</button>
+                                        <button onclick="saveEdit('${id}', 'incoming')">Save</button>
+                                    </div>
+                                    <button onclick="deleteOrder('${id}')">Delete</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}')">Print PDF</button>
                                 </div>`;
+                            setTimeout(() => {
+                                if (data.status === 'ordered' || data.status === 'in shipment') {
+                                    data.materials.forEach(m => addRow(`edit-materials-inc-${id}`, m.quantity, m.item));
+                                }
+                            }, 0);
                         } else if (data.status === 'delivered') {
                             historyHtml += `
                                 <div class="order-item">
                                     <p><strong>Set:</strong> ${data.set}</p>
                                     <p><strong>Person:</strong> ${data.person}</p>
-                                    <p><strong>Materials:</strong> ${materialsHtml}</p>
+                                    ${dateHtml}
+                                    <p><strong>Materials:</strong></p>
+                                    <ul class="materials-list">${materialsList}</ul>
                                     <p><strong>Status:</strong> delivered</p>
                                     ${receivedByHtml}
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsHtml}', 'delivered', '${receivedByHtml}')">Print PDF</button>
+                                    <button onclick="showEditSection('${id}')">Edit</button>
+                                    <div id="edit-${id}" class="edit-section">
+                                        <input type="text" id="edit-set-hist-${id}" value="${data.set}">
+                                        <input type="text" id="edit-person-hist-${id}" value="${data.person}">
+                                        <input type="date" id="edit-date-hist-${id}" value="${data.orderDate}">
+                                        <div id="edit-materials-hist-${id}"></div>
+                                        <button onclick="addRow('edit-materials-hist-${id}')">Add Item Row</button>
+                                        <button onclick="saveEdit('${id}', 'history')">Save</button>
+                                    </div>
+                                    <button onclick="deleteOrder('${id}')">Delete</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}')">Print PDF</button>
                                 </div>`;
+                            setTimeout(() => {
+                                data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
+                            }, 0);
                         }
                     });
                     document.getElementById('approval-list').innerHTML = approvalHtml;
@@ -533,31 +584,57 @@
             }).catch(error => console.error('Error confirming receive:', error));
         }
 
-        // Confirm order (approve and update)
-        function confirmOrder(id) {
-            const newSet = document.getElementById(`edit-set-${id}`).value;
-            const newPerson = document.getElementById(`edit-person-${id}`).value;
-            const newMaterials = collectMaterials(`edit-materials-${id}`);
-            if (!newSet || !newPerson || newMaterials.length === 0) {
-                console.log('Please fill in set, person, and at least one item');
+        // Show edit section
+        function showEditSection(id) {
+            document.getElementById(`edit-${id}`).classList.add('active');
+        }
+
+        // Save edit
+        function saveEdit(id, tab) {
+            const prefix = tab === 'incoming' ? 'inc' : 'hist';
+            const newSet = document.getElementById(`edit-set-${prefix}-${id}`).value;
+            const newPerson = document.getElementById(`edit-person-${prefix}-${id}`).value;
+            const newDate = document.getElementById(`edit-date-${prefix}-${id}`).value;
+            const newMaterials = collectMaterials(`edit-materials-${prefix}-${id}`);
+            if (!newSet || !newPerson || !newDate || newMaterials.length === 0) {
+                console.log('Please fill all fields');
                 return;
             }
             db.collection('orders').doc(id).update({
                 set: newSet,
                 person: newPerson,
+                orderDate: newDate,
+                materials: newMaterials
+            }).catch(error => console.error('Error saving edit:', error));
+        }
+
+        // Delete order
+        function deleteOrder(id) {
+            db.collection('orders').doc(id).delete()
+                .catch(error => console.error('Error deleting order:', error));
+        }
+
+        // Confirm order (approve and update)
+        function confirmOrder(id) {
+            const newSet = document.getElementById(`edit-set-${id}`).value;
+            const newPerson = document.getElementById(`edit-person-${id}`).value;
+            const newDate = document.getElementById(`edit-date-${id}`).value;
+            const newMaterials = collectMaterials(`edit-materials-${id}`);
+            if (!newSet || !newPerson || !newDate || newMaterials.length === 0) {
+                console.log('Please fill all fields and at least one item');
+                return;
+            }
+            db.collection('orders').doc(id).update({
+                set: newSet,
+                person: newPerson,
+                orderDate: newDate,
                 materials: newMaterials,
                 status: 'ordered'
             }).catch(error => console.error('Error confirming order:', error));
         }
 
-        // Update status
-        function updateStatus(id, newStatus) {
-            db.collection('orders').doc(id).update({ status: newStatus })
-                .catch(error => console.error('Error updating status:', error));
-        }
-
         // Generate professional PDF
-        function generatePDF(id, set, person, materialsHtml, status, receivedByHtml) {
+        function generatePDF(id, set, person, materialsList, status, receivedByHtml, date) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(18);
@@ -566,13 +643,14 @@
             doc.text(`Order ID: ${id}`, 20, 40);
             doc.text(`Set: ${set}`, 20, 50);
             doc.text(`Person: ${person}`, 20, 60);
-            doc.text(`Materials:`, 20, 70);
-            doc.html(materialsHtml, { x: 20, y: 75, callback: function () {
-                doc.text(`Status: ${status}`, 20, 100);
+            if (date) doc.text(`Date: ${date}`, 20, 70);
+            doc.text(`Materials:`, 20, 80);
+            doc.html(`<ul>${materialsList}</ul>`, { x: 20, y: 85, callback: function () {
+                doc.text(`Status: ${status}`, 20, 120);
                 if (receivedByHtml) {
-                    doc.html(receivedByHtml, { x: 20, y: 110 });
+                    doc.html(receivedByHtml, { x: 20, y: 130 });
                 }
-                doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 120);
+                doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 140);
                 doc.save(`Order_${id}.pdf`);
             } });
         }
