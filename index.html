@@ -119,9 +119,9 @@
             z-index: -1;
         }
     </style>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+    <!-- Firebase SDKs (using compat for namespace mode) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <div class="non-printable">
@@ -235,18 +235,24 @@
 
         // Load sets
         function loadSets() {
-            db.collection('sets').orderBy('name').onSnapshot(snapshot => {
-                sets = [];
-                let html = '';
-                let optionHtml = '<option value="">Select Set</option>';
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    sets.push({id: doc.id, name: data.name});
-                    html += `<p>${data.name} <button onclick="deleteSet('${doc.id}')">Delete</button></p>`;
-                    optionHtml += `<option value="${data.name}">${data.name}</option>`;
-                });
-                document.getElementById('set-list').innerHTML = html;
-                document.getElementById('order-set').innerHTML = optionHtml;
+            db.collection('sets').orderBy('name').onSnapshot({
+                next: (snapshot) => {
+                    sets = [];
+                    let html = '';
+                    let optionHtml = '<option value="">Select Set</option>';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        sets.push({id: doc.id, name: data.name});
+                        html += `<p>${data.name} <button onclick="deleteSet('${doc.id}')">Delete</button></p>`;
+                        optionHtml += `<option value="${data.name}">${data.name}</option>`;
+                    });
+                    document.getElementById('set-list').innerHTML = html;
+                    document.getElementById('order-set').innerHTML = optionHtml;
+                },
+                error: (error) => {
+                    console.error('Error loading sets:', error);
+                    alert('Error loading sets: ' + error.message);
+                }
             });
         }
 
@@ -254,31 +260,45 @@
         function addSet() {
             const name = document.getElementById('new-set').value;
             if (!name) return;
-            db.collection('sets').add({name: name});
-            document.getElementById('new-set').value = '';
+            db.collection('sets').add({name: name})
+                .then(() => {
+                    document.getElementById('new-set').value = '';
+                    alert('Set added successfully!');
+                })
+                .catch(error => {
+                    console.error('Error adding set:', error);
+                    alert('Error adding set: ' + error.message);
+                });
         }
 
         // Delete set
         function deleteSet(id) {
-            db.collection('sets').doc(id).delete();
+            db.collection('sets').doc(id).delete()
+                .catch(error => alert('Error deleting set: ' + error.message));
         }
 
         // Load items
         function loadItems() {
-            db.collection('items').orderBy('name').onSnapshot(snapshot => {
-                items = [];
-                let html = '';
-                let optionHtml = '<option value="">Select Item</option>';
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    items.push({id: doc.id, name: data.name});
-                    html += `<p>${data.name} <button onclick="deleteItem('${doc.id}')">Delete</button></p>`;
-                    optionHtml += `<option value="${data.name}">${data.name}</option>`;
-                });
-                optionHtml += `<option value="Other">Other</option>`;
-                document.getElementById('item-list').innerHTML = html;
-                // Store optionHtml for use in addRow
-                window.itemOptions = optionHtml;
+            db.collection('items').orderBy('name').onSnapshot({
+                next: (snapshot) => {
+                    items = [];
+                    let html = '';
+                    let optionHtml = '<option value="">Select Item</option>';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        items.push({id: doc.id, name: data.name});
+                        html += `<p>${data.name} <button onclick="deleteItem('${doc.id}')">Delete</button></p>`;
+                        optionHtml += `<option value="${data.name}">${data.name}</option>`;
+                    });
+                    optionHtml += `<option value="Other">Other</option>`;
+                    document.getElementById('item-list').innerHTML = html;
+                    // Store optionHtml for use in addRow
+                    window.itemOptions = optionHtml;
+                },
+                error: (error) => {
+                    console.error('Error loading items:', error);
+                    alert('Error loading items: ' + error.message);
+                }
             });
         }
 
@@ -286,26 +306,40 @@
         function addItem() {
             const name = document.getElementById('new-item').value;
             if (!name) return;
-            db.collection('items').add({name: name});
-            document.getElementById('new-item').value = '';
+            db.collection('items').add({name: name})
+                .then(() => {
+                    document.getElementById('new-item').value = '';
+                    alert('Item added successfully!');
+                })
+                .catch(error => {
+                    console.error('Error adding item:', error);
+                    alert('Error adding item: ' + error.message);
+                });
         }
 
         // Delete item
         function deleteItem(id) {
-            db.collection('items').doc(id).delete();
+            db.collection('items').doc(id).delete()
+                .catch(error => alert('Error deleting item: ' + error.message));
         }
 
         // Load people
         function loadPeople() {
-            db.collection('people').orderBy('name').onSnapshot(snapshot => {
-                people = [];
-                let html = '';
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    people.push({id: doc.id, name: data.name});
-                    html += `<p>${data.name} <button onclick="deletePerson('${doc.id}')">Delete</button></p>`;
-                });
-                document.getElementById('person-list').innerHTML = html;
+            db.collection('people').orderBy('name').onSnapshot({
+                next: (snapshot) => {
+                    people = [];
+                    let html = '';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        people.push({id: doc.id, name: data.name});
+                        html += `<p>${data.name} <button onclick="deletePerson('${doc.id}')">Delete</button></p>`;
+                    });
+                    document.getElementById('person-list').innerHTML = html;
+                },
+                error: (error) => {
+                    console.error('Error loading people:', error);
+                    alert('Error loading people: ' + error.message);
+                }
             });
         }
 
@@ -313,17 +347,25 @@
         function addPerson() {
             const name = document.getElementById('new-person').value;
             if (!name) return;
-            db.collection('people').add({name: name});
-            document.getElementById('new-person').value = '';
+            db.collection('people').add({name: name})
+                .then(() => {
+                    document.getElementById('new-person').value = '';
+                    alert('Person added successfully!');
+                })
+                .catch(error => {
+                    console.error('Error adding person:', error);
+                    alert('Error adding person: ' + error.message);
+                });
         }
 
         // Delete person
         function deletePerson(id) {
-            db.collection('people').doc(id).delete();
+            db.collection('people').doc(id).delete()
+                .catch(error => alert('Error deleting person: ' + error.message));
         }
 
         // Add material row
-        function addRow(containerId, quantity = 1, item = '', manualItem = '', isEdit = false) {
+        function addRow(containerId, quantity = 1, item = '', manualItem = '') {
             const container = document.getElementById(containerId);
             const row = document.createElement('div');
             row.className = 'material-row';
@@ -334,10 +376,13 @@
                 <button onclick="removeRow(this)">Remove</button>
             `;
             container.appendChild(row);
-            if (item) {
-                row.querySelector('select').value = item;
-                toggleManualInput(row.querySelector('select'));
+            const select = row.querySelector('select');
+            select.value = item;
+            if (select.value !== item && item) { // If not found in options
+                select.value = 'Other';
+                row.querySelector('.manual-item').value = item;
             }
+            toggleManualInput(select);
         }
 
         // Toggle manual input
@@ -398,52 +443,58 @@
         // Load orders for all tabs
         function loadOrders() {
             const ordersRef = db.collection('orders').orderBy('createdAt', 'desc');
-            ordersRef.onSnapshot(snapshot => {
-                let approvalHtml = '';
-                let incomingHtml = '';
-                let historyHtml = '';
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const id = doc.id;
-                    let materialsHtml = data.materials.map(m => `<p>${m.quantity} x ${m.item}</p>`).join('');
+            ordersRef.onSnapshot({
+                next: (snapshot) => {
+                    let approvalHtml = '';
+                    let incomingHtml = '';
+                    let historyHtml = '';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const id = doc.id;
+                        let materialsHtml = data.materials.map(m => `<p>${m.quantity} x ${m.item}</p>`).join('');
 
-                    if (data.status === 'pending') {
-                        approvalHtml += `
-                            <div class="order-item">
-                                <p><strong>Set:</strong> <input type="text" value="${data.set}" id="edit-set-${id}"></p>
-                                <p><strong>Materials:</strong></p>
-                                <div id="edit-materials-${id}"></div>
-                                <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
-                                <button onclick="confirmOrder('${id}')">Confirm</button>
-                                <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
-                            </div>`;
-                        // Load existing materials into editable rows
-                        setTimeout(() => {
-                            data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
-                        }, 0);
-                    } else if (data.status === 'ordered' || data.status === 'in shipment') {
-                        incomingHtml += `
-                            <div class="order-item">
-                                <p><strong>Set:</strong> ${data.set}</p>
-                                <p><strong>Materials:</strong> ${materialsHtml}</p>
-                                <p><strong>Status:</strong> ${data.status}</p>
-                                <button onclick="updateStatus('${id}', 'in shipment')">Mark as In Shipment</button>
-                                <button onclick="updateStatus('${id}', 'delivered')">Mark as Delivered</button>
-                                <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
-                            </div>`;
-                    } else if (data.status === 'delivered') {
-                        historyHtml += `
-                            <div class="order-item">
-                                <p><strong>Set:</strong> ${data.set}</p>
-                                <p><strong>Materials:</strong> ${materialsHtml}</p>
-                                <p><strong>Status:</strong> delivered</p>
-                                <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', 'delivered')">Print</button>
-                            </div>`;
-                    }
-                });
-                document.getElementById('approval-list').innerHTML = approvalHtml;
-                document.getElementById('incoming-list').innerHTML = incomingHtml;
-                document.getElementById('history-list').innerHTML = historyHtml;
+                        if (data.status === 'pending') {
+                            approvalHtml += `
+                                <div class="order-item">
+                                    <p><strong>Set:</strong> <input type="text" value="${data.set}" id="edit-set-${id}"></p>
+                                    <p><strong>Materials:</strong></p>
+                                    <div id="edit-materials-${id}"></div>
+                                    <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
+                                    <button onclick="confirmOrder('${id}')">Confirm</button>
+                                    <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
+                                </div>`;
+                            // Load existing materials into editable rows
+                            setTimeout(() => {
+                                data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
+                            }, 0);
+                        } else if (data.status === 'ordered' || data.status === 'in shipment') {
+                            incomingHtml += `
+                                <div class="order-item">
+                                    <p><strong>Set:</strong> ${data.set}</p>
+                                    <p><strong>Materials:</strong> ${materialsHtml}</p>
+                                    <p><strong>Status:</strong> ${data.status}</p>
+                                    <button onclick="updateStatus('${id}', 'in shipment')">Mark as In Shipment</button>
+                                    <button onclick="updateStatus('${id}', 'delivered')">Mark as Delivered</button>
+                                    <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
+                                </div>`;
+                        } else if (data.status === 'delivered') {
+                            historyHtml += `
+                                <div class="order-item">
+                                    <p><strong>Set:</strong> ${data.set}</p>
+                                    <p><strong>Materials:</strong> ${materialsHtml}</p>
+                                    <p><strong>Status:</strong> delivered</p>
+                                    <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', 'delivered')">Print</button>
+                                </div>`;
+                        }
+                    });
+                    document.getElementById('approval-list').innerHTML = approvalHtml;
+                    document.getElementById('incoming-list').innerHTML = incomingHtml;
+                    document.getElementById('history-list').innerHTML = historyHtml;
+                },
+                error: (error) => {
+                    console.error('Error loading orders:', error);
+                    alert('Error loading orders: ' + error.message);
+                }
             });
         }
 
@@ -459,14 +510,15 @@
                 set: newSet,
                 materials: newMaterials,
                 status: 'ordered'
-            }).then(() => alert('Order approved and moved to Incoming!'));
+            }).then(() => alert('Order approved and moved to Incoming!'))
+              .catch(error => alert('Error confirming order: ' + error.message));
         }
 
         // Update status
         function updateStatus(id, newStatus) {
             db.collection('orders').doc(id).update({ status: newStatus })
                 .then(() => alert('Status updated!'))
-                .catch(error => alert(error.message));
+                .catch(error => alert('Error updating status: ' + error.message));
         }
 
         // Print order
