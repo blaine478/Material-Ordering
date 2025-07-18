@@ -92,10 +92,11 @@
         }
         .order-item {
             background: #ffffff;
-            padding: 15px;
-            margin-bottom: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            border: 1px solid #ddd;
         }
         .materials-list {
             list-style-type: none;
@@ -144,6 +145,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- DOMPurify for secure HTML rendering in jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+    <!-- html2canvas for HTML rendering in jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="non-printable">
@@ -457,7 +460,8 @@
                 materials: materials,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                receivedBy: null
+                receivedBy: null,
+                receivedAt: null
             }).then(() => {
                 // Clear form
                 document.getElementById('order-set').value = '';
@@ -480,6 +484,7 @@
                         const id = doc.id;
                         let materialsList = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
                         let receivedByHtml = data.receivedBy ? `<p><strong>Received By:</strong> ${data.receivedBy}</p>` : '';
+                        let receivedAtHtml = data.receivedAt ? `<p><strong>Received At:</strong> ${data.receivedAt.toDate().toLocaleString()}</p>` : '';
                         let dateHtml = data.orderDate ? `<p><strong>Date:</strong> ${data.orderDate}</p>` : '';
 
                         if (data.status === 'pending') {
@@ -493,7 +498,7 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -522,7 +527,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -539,6 +544,7 @@
                                     <ul class="materials-list">${materialsList}</ul>
                                     <p><strong>Status:</strong> delivered</p>
                                     ${receivedByHtml}
+                                    ${receivedAtHtml}
                                     <button onclick="showEditSection('${id}')">Edit</button>
                                     <div id="edit-${id}" class="edit-section">
                                         <input type="text" id="edit-set-hist-${id}" value="${data.set}">
@@ -549,7 +555,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsList}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -580,7 +586,8 @@
             }
             db.collection('orders').doc(id).update({
                 status: 'delivered',
-                receivedBy: receivedBy
+                receivedBy: receivedBy,
+                receivedAt: firebase.firestore.FieldValue.serverTimestamp()
             }).catch(error => console.error('Error confirming receive:', error));
         }
 
@@ -634,7 +641,7 @@
         }
 
         // Generate professional PDF
-        function generatePDF(id, set, person, materialsList, status, receivedByHtml, date) {
+        function generatePDF(id, set, person, materialsList, status, receivedByHtml, date, receivedAtHtml) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(18);
@@ -650,7 +657,10 @@
                 if (receivedByHtml) {
                     doc.html(receivedByHtml, { x: 20, y: 130 });
                 }
-                doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 140);
+                if (receivedAtHtml) {
+                    doc.html(receivedAtHtml, { x: 20, y: 140 });
+                }
+                doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 150);
                 doc.save(`Order_${id}.pdf`);
             } });
         }
