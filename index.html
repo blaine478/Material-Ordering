@@ -14,14 +14,40 @@
         h1, h2, h3 {
             color: #4a4a4a; /* Dark gray for modern look */
         }
-        .order-form {
-            max-width: 600px;
-            background: #ffffff; /* Clean white card */
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+        .tab-navigation {
+            display: flex;
+            margin-bottom: 20px;
         }
-        input, textarea {
+        .tab-button {
+            background-color: #6b8e23; /* Olive green */
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+            transition: background-color 0.3s;
+        }
+        .tab-button.active {
+            background-color: #556b2f;
+        }
+        .tab-button:hover {
+            background-color: #556b2f;
+        }
+        .tab-content {
+            display: none;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 0 4px 4px 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .order-form, .settings-form {
+            max-width: 600px;
+        }
+        input, textarea, select {
             width: 100%;
             padding: 10px;
             margin: 10px 0;
@@ -30,7 +56,7 @@
             box-sizing: border-box;
         }
         button {
-            background-color: #6b8e23; /* Olive green for new-age earthy feel */
+            background-color: #6b8e23;
             color: white;
             padding: 10px 15px;
             border: none;
@@ -40,10 +66,24 @@
             transition: background-color 0.3s;
         }
         button:hover {
-            background-color: #556b2f; /* Darker green on hover */
+            background-color: #556b2f;
         }
-        .order-list {
-            margin-top: 20px;
+        .material-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .material-row input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .material-row select {
+            flex: 2;
+            margin-right: 10px;
+        }
+        .material-row button {
+            background-color: #cc0000;
+            margin: 0;
         }
         .order-item {
             background: #ffffff;
@@ -63,7 +103,6 @@
                 display: block;
             }
         }
-        /* Add a subtle construction theme with pseudo-elements or backgrounds if desired */
         body::before {
             content: '';
             position: fixed;
@@ -71,7 +110,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="%23e0d8c3" opacity="0.1"/></svg>'); /* Subtle pattern */
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="%23e0d8c3" opacity="0.1"/></svg>');
             z-index: -1;
         }
     </style>
@@ -82,30 +121,74 @@
 <body>
     <div class="non-printable">
         <h1>Lumber Order App</h1>
-        <p>Welcome! This app is open to everyone—no login required. Create, view, edit, and print orders for movie set construction.</p>
+        <div class="tab-navigation">
+            <button class="tab-button active" onclick="openTab('order')">Order</button>
+            <button class="tab-button" onclick="openTab('approval')">Approval</button>
+            <button class="tab-button" onclick="openTab('incoming')">Approval</button>
+            <button class="tab-navigation">
+                <button class="tab-button active" onclick="openTab('order')">Order</button>
+                <button class="tab-button" onclick="openTab('approval')">Approval</button>
+                <button class="tab-button" onclick="openTab('incoming')">Incoming</button>
+                <button class="tab-button" onclick="openTab('history')">History</button>
+                <button class="tab-button" onclick="openTab('settings')">Settings</button>
+            </div>
 
-        <!-- Create Order Section -->
-        <div id="create-order-section">
-            <h2>Create New Order</h2>
-            <div class="order-form">
-                <input type="text" id="set-name" placeholder="Set Name (e.g., Main Stage Set)">
-                <textarea id="materials" placeholder="Materials (e.g., 10x 2x4 lumber, 5x plywood sheets)"></textarea>
-                <button onclick="createOrder()">Submit Order</button>
+            <!-- Order Tab: Create Order -->
+            <div id="order-tab" class="tab-content active">
+                <h2>Create New Order</h2>
+                <div class="order-form">
+                    <select id="order-set">
+                        <option value="">Select Set</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                    <div id="materials-container">
+                        <!-- Dynamic rows -->
+                    </div>
+                    <button onclick="addRow('materials-container')">Add Item</button>
+                    <button onclick="createOrder()">Submit</button>
+                </div>
+            </div>
+
+            <!-- Approval Tab: Pending Orders -->
+            <div id="approval-tab" class="tab-content">
+                <h2>Approval Pending Orders</h2>
+                <div id="approval-list"></div>
+            </div>
+
+            <!-- Incoming Tab: Ordered and In Shipment -->
+ -->
+            <div id="incoming-tab" class="tab-content">
+                <h2>Incoming Orders</h2>
+                <div id="incoming-list"></div>
+            </div>
+
+            <!-- History Tab: Delivered Orders -->
+            <div id="history-tab" class="tab-content">
+                <h2>Order History</h2>
+                <div id="history-list"></div>
+            </div>
+
+            <!-- Settings Tab: Manage Sets and Items -->
+            <div id="settings-tab" class="tab-content">
+                <h2>Settings</h2>
+                <div class="settings-form">
+                    <h3>Manage Sets</h3>
+                    <input type="text" id="new-set" placeholder="New Set Name">
+                    <button onclick="addSet()">Add Set</button>
+                    <div id="set-list"></div>
+                    <h3>Manage Items (Receiving)</h3>
+                    <input type="text" id="new-item" placeholder="New Item (e.g., 2x4 Lumber)">
+                    <button onclick="addItem()">Add Item</button>
+                    <div id="item-list"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Order List Section -->
-        <div id="order-list-section">
-            <h2>All Orders</h2>
-            <div id="order-list" class="order-list"></div>
-        </div>
-    </div>
+        <!-- Printable Order Form -->
+        <div id="printable-order" class="printable"></div>
 
-    <!-- Printable Order Form -->
-    <div id="printable-order" class="printable"></div>
-
-    <script>
-        // Firebase config provided by user
+        <script>
+        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyCRbUS6L7O4I_gGaaCmCyHi7wt_WgMwZFc",
             authDomain: "set-hardware.firebaseapp.com",
@@ -119,69 +202,228 @@
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Load orders on page load
+        // Global variables
+        let sets = [];
+        let items = [];
+
+        // Load data on page load
         window.onload = function() {
+            loadSets();
+            loadItems();
             loadOrders();
+            openTab('order'); // Default tab
         };
+
+        // Tab switching
+        function openTab(tabId) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId + '-tab').classList.add('active');
+
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="openTab('${tabId}')]`).classList.add('active');
+        }
+
+        // Load sets
+        function loadSets() {
+            db.collection('sets').orderBy('name').onSnapshot(snapshot => {
+                sets = [];
+                let html = '';
+                let optionHtml = '<option value="">Select Set</option>';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    sets.push({id: doc.id, name: data.name});
+                    html += `<p>${data.name} <button onclick="deleteSet('${doc.id}')">Delete</button></p>`;
+                    optionHtml += `<option value="${data.name}">${data.name}</option>`;
+                });
+                document.getElementById('set-list').innerHTML = html;
+                document.getElementById('order-set').innerHTML = optionHtml;
+            });
+        }
+
+        // Add set
+        function addSet() {
+            const name = document.getElementById('new-set').value;
+            if (!name) return;
+            db.collection('sets').add({name: name});
+            document.getElementById('new-set').value = '';
+        }
+
+        // Delete set
+        function deleteSet(id) {
+            db.collection('sets').doc(id).delete();
+        }
+
+        // Load items
+        function loadItems() {
+            db.collection('items').orderBy('name').onSnapshot(snapshot => {
+                items = [];
+                let html = '';
+                let optionHtml = '<option value="">Select Item</option>';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    items.push({id: doc.id, name: data.name});
+                    html += `<p>${data.name} <button onclick="deleteItem('${doc.id}')">Delete</button></p>`;
+                    optionHtml += `<option value="${data.name}">${data.name}</option>`;
+                });
+                document.getElementById('item-list').innerHTML = html;
+                // Store optionHtml for use in addRow
+                window.itemOptions = optionHtml;
+            });
+        }
+
+        // Add item
+        function addItem() {
+            const name = document.getElementById('new-item').value;
+            if (!name) return;
+            db.collection('items').add({name: name});
+            document.getElementById('new-item').value = '';
+        }
+
+        // Delete item
+        function deleteItem(id) {
+            db.collection('items').doc(id).delete();
+        }
+
+        // Add material row
+        function addRow(containerId, quantity = 1, item = '', isEdit = false) {
+            const container = document.getElementById(containerId);
+            const row = document.createElement('div');
+            row.className = 'material-row';
+            row.innerHTML = `
+                <input type="number" value="${quantity}" min="1" placeholder="Quantity">
+                <select class="item-select">${window.itemOptions}</select>
+                <button onclick="removeRow(this)">Remove</button>
+            `;
+            container.appendChild(row);
+            if (item) {
+                row.querySelector('select').value = item;
+            }
+        }
+
+        // Remove row
+        function removeRow(btn) {
+            btn.parentElement.remove();
+        }
+
+        // Collect materials from rows
+        function collectMaterials(containerId) {
+            const rows = document.querySelectorAll(`#${containerId} .material-row`);
+            const materials = [];
+            rows.forEach(row => {
+                const quantity = parseInt(row.querySelector('input[type="number"]').value);
+                const item = row.querySelector('select').value;
+                if (quantity && item) {
+                    materials.push({quantity, item});
+                }
+            });
+            return materials;
+        }
 
         // Create order
         function createOrder() {
-            const setName = document.getElementById('set-name').value;
-            const materials = document.getElementById('materials').value;
-            if (!setName || !materials) {
-                alert('Please fill in all fields');
+            const set = document.getElementById('order-set').value;
+            const materials = collectMaterials('materials-container');
+            if (!set || materials.length === 0) {
+                alert('Please select set and add at least one item');
                 return;
             }
             db.collection('orders').add({
-                set: setName,
+                set: set,
                 materials: materials,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
-                alert('Order created!');
-                document.getElementById('set-name').value = '';
-                document.getElementById('materials').value = '';
+                alert('Order submitted for approval!');
+                // Clear form
+                document.getElementById('order-set').value = '';
+                document.getElementById('materials-container').innerHTML = '';
             }).catch(error => alert(error.message));
         }
 
-        // Load all orders (visible to everyone)
+        // Load orders for all tabs
         function loadOrders() {
             const ordersRef = db.collection('orders').orderBy('createdAt', 'desc');
             ordersRef.onSnapshot(snapshot => {
-                let html = '';
+                let approvalHtml = '';
+                let incomingHtml = '';
+                let historyHtml = '';
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const id = doc.id;
-                    html += `
-                        <div class="order-item">
-                            <p><strong>Set:</strong> ${data.set}</p>
-                            <p><strong>Materials:</strong> ${data.materials}</p>
-                            <p><strong>Status:</strong> ${data.status}</p>
-                            <button onclick="editStatus('${id}', 'ordered')">Mark as Ordered</button>
-                            <button onclick="editStatus('${id}', 'in shipment')">Mark as In Shipment</button>
-                            <button onclick="editStatus('${id}', 'delivered')">Mark as Delivered</button>
-                            <button onclick="printOrder('${id}', '${data.set}', '${data.materials}', '${data.status}')">Print Order</button>
-                        </div>`;
+                    let materialsHtml = data.materials.map(m => `<p>${m.quantity} x ${m.item}</p>`).join('');
+
+                    if (data.status === 'pending') {
+                        approvalHtml += `
+                            <div class="order-item">
+                                <p><strong>Set:</strong> <input type="text" value="${data.set}" id="edit-set-${id}"></p>
+                                <p><strong>Materials:</strong></p>
+                                <div id="edit-materials-${id}"></div>
+                                <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
+                                <button onclick="confirmOrder('${id}')">Confirm</button>
+                                <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
+                            </div>`;
+                        // Load existing materials into editable rows
+                        setTimeout(() => {
+                            data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item, true));
+                        }, 0);
+                    } else if (data.status === 'ordered' || data.status === 'in shipment') {
+                        incomingHtml += `
+                            <div class="order-item">
+                                <p><strong>Set:</strong> ${data.set}</p>
+                                <p><strong>Materials:</strong> ${materialsHtml}</p>
+                                <p><strong>Status:</strong> ${data.status}</p>
+                                <button onclick="updateStatus('${id}', 'in shipment')">Mark as In Shipment</button>
+                                <button onclick="updateStatus('${id}', 'delivered')">Mark as Delivered</button>
+                                <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
+                            </div>`;
+                    } else if (data.status === 'delivered') {
+                        historyHtml += `
+                            <div class="order-item">
+                                <p><strong>Set:</strong> ${data.set}</p>
+                                <p><strong>Materials:</strong> ${materialsHtml}</p>
+                                <p><strong>Status:</strong> delivered</p>
+                                <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', 'delivered')">Print</button>
+                            </div>`;
+                    }
                 });
-                document.getElementById('order-list').innerHTML = html;
+                document.getElementById('approval-list').innerHTML = approvalHtml;
+                document.getElementById('incoming-list').innerHTML = incomingHtml;
+                document.getElementById('history-list').innerHTML = historyHtml;
             });
         }
 
-        // Edit status
-        function editStatus(id, newStatus) {
+        // Confirm order (approve and update)
+        function confirmOrder(id) {
+            const newSet = document.getElementById(`edit-set-${id}`).value;
+            const newMaterials = collectMaterials(`edit-materials-${id}`);
+            if (!newSet || newMaterials.length === 0) {
+                alert('Please fill in set and at least one item');
+                return;
+            }
+            db.collection('orders').doc(id).update({
+                set: newSet,
+                materials: newMaterials,
+                status: 'ordered'
+            }).then(() => alert('Order approved and moved to Incoming!'));
+        }
+
+        // Update status
+        function updateStatus(id, newStatus) {
             db.collection('orders').doc(id).update({ status: newStatus })
                 .then(() => alert('Status updated!'))
                 .catch(error => alert(error.message));
         }
 
         // Print order
-        function printOrder(id, set, materials, status) {
+        function printOrder(id, set, materialsHtml, status) {
             const printable = document.getElementById('printable-order');
             printable.innerHTML = `
                 <h1>Lumber Order Form</h1>
                 <p><strong>Order ID:</strong> ${id}</p>
                 <p><strong>Set:</strong> ${set}</p>
-                <p><strong>Materials:</strong> ${materials}</p>
+                <p><strong>Materials:</strong> ${materialsHtml}</p>
                 <p><strong>Status:</strong> ${status}</p>
                 <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
             `;
