@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumber Order App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .hidden { display: none; }
+        button { margin: 5px; }
+        .order-form { max-width: 600px; }
+        .order-list { margin-top: 20px; }
+        .printable { display: none; }
+        @media print {
+            .non-printable { display: none; }
+            .printable { display: block; }
+        }
+    </style>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+</head>
+<body>
+    <div id="auth-section" class="non-printable">
+        <h1>Lumber Order App</h1>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="signUp()">Sign Up</button>
+        <button onclick="signIn()">Sign In</button>
+        <button onclick="signOut()">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+
+    <div id="app-section" class="non-printable hidden">
+        <h2>Welcome, <span id="user-role"></span></h2>
+
+        <!-- Foreman: Create Order -->
+        <div id="create-order-section" class="hidden">
+            <h3>Create New Order</h3>
+            <div class="order-form">
+                <input type="text" id="set-name" placeholder="Set Name">
+                <textarea id="materials" placeholder="Materials (e.g., 10x 2x4 lumber, 5x plywood sheets)"></textarea>
+                <button onclick="createOrder()">Submit Order</button>
+            </div>
+        </div>
+
+        <!-- Admin: View/Edit/Print Orders -->
+        <div id="admin-section" class="hidden">
+            <h3>Manage Orders</h3>
+            <div id="admin-order-list" class="order-list"></div>
+        </div>
+
+        <!-- Laborer: View Orders -->
+        <div id="laborer-section" class="hidden">
+            <h3>Incoming Orders</h3>
+            <div id="laborer-order-list" class="order-list"></div>
+        </div>
+    </div>
+
+    <!-- Printable Order Form -->
+    <div id="printable-order" class="printable"></div>
+
+    <script>
+        // Replace with your Firebase config
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Role-based access (simplified: store role in user email or custom claims; here using email suffix for demo)
+        function getUserRole(email) {
+            if (email.endsWith('@admin.com')) return 'admin';
+            if (email.endsWith('@foreman.com')) return 'foreman';
+            if (email.endsWith('@laborer.com')) return 'laborer';
+            return 'unknown';
+        }
+
+        // Auth functions
+        function signUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    alert('Signed up successfully!');
+                })
+                .catch(error => alert(error.message));
+        }
+
+        function signIn() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            auth.signInWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    alert('Signed in successfully!');
+                })
+                .catch(error => alert(error.message));
+        }
+
+        function signOut() {
+            auth.signOut().then(() => alert('Signed out!'));
+        }
+
+        // Listen for auth state changes
+        auth.onAuthStateChanged(user => {
+            const authSection = document.getElementById('auth-section');
+            const appSection = document.getElementById('app-section');
+            if (user) {
+                authSection.classList.add('hidden');
+                appSection.classList.remove('hidden');
+                const role = getUserRole(user.email);
+                document.getElementById('user-info').textContent = `Logged in as ${user.email}`;
+                document.getElementById('user-role').textContent = role;
+                showSectionByRole(role);
+                loadOrders(role);
+            } else {
+                authSection.classList.remove('hidden');
+                appSection.classList.add('hidden');
+                document.getElementById('user-info').textContent = '';
+            }
+        });
+
+        // Show sections based on role
+        function showSectionByRole(role) {
+            document.getElementById('create-order-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById('laborer-section').classList.add('hidden');
+            if (role === 'foreman') {
+                document.getElementById('create-order-section').classList.remove('hidden');
+            } else if (role === 'admin') {
+                document.getElementById('admin-section').classList.remove('hidden');
+            } else if (role === 'laborer') {
+                document.getElementById('laborer-section').classList.remove('hidden');
+            }
+        }
+
+        // Create order (Foreman)
+        function createOrder() {
+            const setName = document.getElementById('set-name').value;
+            const materials = document.getElementById('materials').value;
+            const user = auth.currentUser;
+            if (!setName || !materials) {
+                alert('Please fill in all fields');
+                return;
+            }
+            db.collection('orders').add({
+                set: setName,
+                materials: materials,
+                status: 'pending',
+                createdBy: user.email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                alert('Order created!');
+                document.getElementById('set-name').value = '';
+                document.getElementById('materials').value = '';
+            }).catch(error => alert(error.message));
+        }
+
+        // Load orders based on role
+        function loadOrders(role) {
+            const ordersRef = db.collection('orders').orderBy('createdAt', 'desc');
+            ordersRef.onSnapshot(snapshot => {
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const id = doc.id;
+                    if (role === 'admin') {
+                        html += `
+                            <div>
+                                <p><strong>Set:</strong> ${data.set}</p>
+                                <p><strong>Materials:</strong> ${data.materials}</p>
+                                <p><strong>Status:</strong> ${data.status}</p>
+                                <button onclick="editStatus('${id}', 'ordered')">Mark as Ordered</button>
+                                <button onclick="editStatus('${id}', 'in shipment')">Mark as In Shipment</button>
+                                <button onclick="editStatus('${id}', 'delivered')">Mark as Delivered</button>
+                                <button onclick="printOrder('${id}', '${data.set}', '${data.materials}', '${data.status}')">Print Order</button>
+                            </div><hr>`;
+                    } else if (role === 'laborer' && (data.status === 'in shipment' || data.status === 'delivered')) {
+                        html += `
+                            <div>
+                                <p><strong>Set:</strong> ${data.set}</p>
+                                <p><strong>Materials:</strong> ${data.materials}</p>
+                                <p><strong>Status:</strong> ${data.status}</p>
+                                <p><strong>Deliver to:</strong> Set Crew for ${data.set}</p>
+                            </div><hr>`;
+                    } else if (role === 'foreman') {
+                        // Foreman can see their own orders
+                        if (data.createdBy === auth.currentUser.email) {
+                            html += `
+                                <div>
+                                    <p><strong>Set:</strong> ${data.set}</p>
+                                    <p><strong>Materials:</strong> ${data.materials}</p>
+                                    <p><strong>Status:</strong> ${data.status}</p>
+                                </div><hr>`;
+                        }
+                    }
+                });
+                if (role === 'admin') {
+                    document.getElementById('admin-order-list').innerHTML = html;
+                } else if (role === 'laborer') {
+                    document.getElementById('laborer-order-list').innerHTML = html;
+                } else if (role === 'foreman') {
+                    // Append to create section or separate div
+                    let foremanList = document.getElementById('foreman-order-list');
+                    if (!foremanList) {
+                        foremanList = document.createElement('div');
+                        foremanList.id = 'foreman-order-list';
+                        foremanList.classList.add('order-list');
+                        document.getElementById('create-order-section').appendChild(foremanList);
+                    }
+                    foremanList.innerHTML = '<h3>Your Orders</h3>' + html;
+                }
+            });
+        }
+
+        // Edit status (Admin)
+        function editStatus(id, newStatus) {
+            db.collection('orders').doc(id).update({ status: newStatus })
+                .then(() => alert('Status updated!'))
+                .catch(error => alert(error.message));
+        }
+
+        // Print order
+        function printOrder(id, set, materials, status) {
+            const printable = document.getElementById('printable-order');
+            printable.innerHTML = `
+                <h1>Lumber Order Form</h1>
+                <p><strong>Order ID:</strong> ${id}</p>
+                <p><strong>Set:</strong> ${set}</p>
+                <p><strong>Materials:</strong> ${materials}</p>
+                <p><strong>Status:</strong> ${status}</p>
+                <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            `;
+            window.print();
+        }
+    </script>
+</body>
+</html>
