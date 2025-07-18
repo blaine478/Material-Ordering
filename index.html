@@ -97,6 +97,13 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+        .receive-section {
+            display: none;
+            margin-top: 10px;
+        }
+        .receive-section.active {
+            display: block;
+        }
         .printable {
             display: none;
         }
@@ -119,9 +126,11 @@
             z-index: -1;
         }
     </style>
-    <!-- Firebase SDKs (using compat for namespace mode) -->
+    <!-- Firebase SDKs (compat mode) -->
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div class="non-printable">
@@ -134,7 +143,7 @@
             <button class="tab-button" onclick="openTab('settings')">Settings</button>
         </div>
 
-        <!-- Incoming Tab: Ordered and In Shipment -->
+        <!-- Incoming Tab: Ordered and In Shipment (Receiving) -->
         <div id="incoming-tab" class="tab-content">
             <h2>Incoming Orders</h2>
             <div id="incoming-list"></div>
@@ -146,6 +155,10 @@
             <div class="order-form">
                 <select id="order-set">
                     <option value="">Select Set</option>
+                    <!-- Populated dynamically -->
+                </select>
+                <select id="order-person">
+                    <option value="">Select Person the Order Goes To</option>
                     <!-- Populated dynamically -->
                 </select>
                 <div id="materials-container">
@@ -190,8 +203,8 @@
         </div>
     </div>
 
-    <!-- Printable Order Form -->
-    <div id="printable-order" class="printable"></div>
+    <!-- Printable Order Form (hidden, used for PDF) -->
+    <div id="printable-order" class="printable" style="display: none;"></div>
 
     <script>
         // Firebase config
@@ -251,7 +264,6 @@
                 },
                 error: (error) => {
                     console.error('Error loading sets:', error);
-                    alert('Error loading sets: ' + error.message);
                 }
             });
         }
@@ -263,18 +275,16 @@
             db.collection('sets').add({name: name})
                 .then(() => {
                     document.getElementById('new-set').value = '';
-                    alert('Set added successfully!');
                 })
                 .catch(error => {
                     console.error('Error adding set:', error);
-                    alert('Error adding set: ' + error.message);
                 });
         }
 
         // Delete set
         function deleteSet(id) {
             db.collection('sets').doc(id).delete()
-                .catch(error => alert('Error deleting set: ' + error.message));
+                .catch(error => console.error('Error deleting set:', error));
         }
 
         // Load items
@@ -292,12 +302,10 @@
                     });
                     optionHtml += `<option value="Other">Other</option>`;
                     document.getElementById('item-list').innerHTML = html;
-                    // Store optionHtml for use in addRow
                     window.itemOptions = optionHtml;
                 },
                 error: (error) => {
                     console.error('Error loading items:', error);
-                    alert('Error loading items: ' + error.message);
                 }
             });
         }
@@ -309,18 +317,16 @@
             db.collection('items').add({name: name})
                 .then(() => {
                     document.getElementById('new-item').value = '';
-                    alert('Item added successfully!');
                 })
                 .catch(error => {
                     console.error('Error adding item:', error);
-                    alert('Error adding item: ' + error.message);
                 });
         }
 
         // Delete item
         function deleteItem(id) {
             db.collection('items').doc(id).delete()
-                .catch(error => alert('Error deleting item: ' + error.message));
+                .catch(error => console.error('Error deleting item:', error));
         }
 
         // Load people
@@ -329,16 +335,19 @@
                 next: (snapshot) => {
                     people = [];
                     let html = '';
+                    let optionHtml = '<option value="">Select Person the Order Goes To</option>';
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         people.push({id: doc.id, name: data.name});
                         html += `<p>${data.name} <button onclick="deletePerson('${doc.id}')">Delete</button></p>`;
+                        optionHtml += `<option value="${data.name}">${data.name}</option>`;
                     });
                     document.getElementById('person-list').innerHTML = html;
+                    document.getElementById('order-person').innerHTML = optionHtml;
+                    window.personOptions = optionHtml.replace('Select Person the Order Goes To', 'Select Who Picked Up');
                 },
                 error: (error) => {
                     console.error('Error loading people:', error);
-                    alert('Error loading people: ' + error.message);
                 }
             });
         }
@@ -350,18 +359,16 @@
             db.collection('people').add({name: name})
                 .then(() => {
                     document.getElementById('new-person').value = '';
-                    alert('Person added successfully!');
                 })
                 .catch(error => {
                     console.error('Error adding person:', error);
-                    alert('Error adding person: ' + error.message);
                 });
         }
 
         // Delete person
         function deletePerson(id) {
             db.collection('people').doc(id).delete()
-                .catch(error => alert('Error deleting person: ' + error.message));
+                .catch(error => console.error('Error deleting person:', error));
         }
 
         // Add material row
@@ -422,22 +429,25 @@
         // Create order
         function createOrder() {
             const set = document.getElementById('order-set').value;
+            const person = document.getElementById('order-person').value;
             const materials = collectMaterials('materials-container');
-            if (!set || materials.length === 0) {
-                alert('Please select set and add at least one item');
+            if (!set || !person || materials.length === 0) {
+                console.log('Please select set, person, and add at least one item');
                 return;
             }
             db.collection('orders').add({
                 set: set,
+                person: person,
                 materials: materials,
                 status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                receivedBy: null
             }).then(() => {
-                alert('Order submitted for approval!');
                 // Clear form
                 document.getElementById('order-set').value = '';
+                document.getElementById('order-person').value = '';
                 document.getElementById('materials-container').innerHTML = '';
-            }).catch(error => alert(error.message));
+            }).catch(error => console.error(error.message));
         }
 
         // Load orders for all tabs
@@ -451,19 +461,20 @@
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         const id = doc.id;
-                        let materialsHtml = data.materials.map(m => `<p>${m.quantity} x ${m.item}</p>`).join('');
+                        let materialsHtml = data.materials.map(m => `${m.quantity} x ${m.item}`).join('<br>');
+                        let receivedByHtml = data.receivedBy ? `<p><strong>Received By:</strong> ${data.receivedBy}</p>` : '';
 
                         if (data.status === 'pending') {
                             approvalHtml += `
                                 <div class="order-item">
                                     <p><strong>Set:</strong> <input type="text" value="${data.set}" id="edit-set-${id}"></p>
+                                    <p><strong>Person:</strong> <input type="text" value="${data.person}" id="edit-person-${id}"></p>
                                     <p><strong>Materials:</strong></p>
                                     <div id="edit-materials-${id}"></div>
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
-                                    <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsHtml}', '${data.status}', '${receivedByHtml}')">Print PDF</button>
                                 </div>`;
-                            // Load existing materials into editable rows
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
                             }, 0);
@@ -471,19 +482,26 @@
                             incomingHtml += `
                                 <div class="order-item">
                                     <p><strong>Set:</strong> ${data.set}</p>
+                                    <p><strong>Person:</strong> ${data.person}</p>
                                     <p><strong>Materials:</strong> ${materialsHtml}</p>
                                     <p><strong>Status:</strong> ${data.status}</p>
                                     <button onclick="updateStatus('${id}', 'in shipment')">Mark as In Shipment</button>
-                                    <button onclick="updateStatus('${id}', 'delivered')">Mark as Delivered</button>
-                                    <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', '${data.status}')">Print</button>
+                                    <button onclick="showReceiveSection('${id}')">Received</button>
+                                    <div id="receive-${id}" class="receive-section">
+                                        <select id="receive-person-${id}">${window.personOptions}</select>
+                                        <button onclick="confirmReceive('${id}')">Confirm Receive</button>
+                                    </div>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsHtml}', '${data.status}', '${receivedByHtml}')">Print PDF</button>
                                 </div>`;
                         } else if (data.status === 'delivered') {
                             historyHtml += `
                                 <div class="order-item">
                                     <p><strong>Set:</strong> ${data.set}</p>
+                                    <p><strong>Person:</strong> ${data.person}</p>
                                     <p><strong>Materials:</strong> ${materialsHtml}</p>
                                     <p><strong>Status:</strong> delivered</p>
-                                    <button onclick="printOrder('${id}', '${data.set}', '${materialsHtml}', 'delivered')">Print</button>
+                                    ${receivedByHtml}
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.person}', '${materialsHtml}', 'delivered', '${receivedByHtml}')">Print PDF</button>
                                 </div>`;
                         }
                     });
@@ -493,46 +511,70 @@
                 },
                 error: (error) => {
                     console.error('Error loading orders:', error);
-                    alert('Error loading orders: ' + error.message);
                 }
             });
+        }
+
+        // Show receive section
+        function showReceiveSection(id) {
+            document.getElementById(`receive-${id}`).classList.add('active');
+        }
+
+        // Confirm receive
+        function confirmReceive(id) {
+            const receivedBy = document.getElementById(`receive-person-${id}`).value;
+            if (!receivedBy) {
+                console.log('Please select who picked up');
+                return;
+            }
+            db.collection('orders').doc(id).update({
+                status: 'delivered',
+                receivedBy: receivedBy
+            }).catch(error => console.error('Error confirming receive:', error));
         }
 
         // Confirm order (approve and update)
         function confirmOrder(id) {
             const newSet = document.getElementById(`edit-set-${id}`).value;
+            const newPerson = document.getElementById(`edit-person-${id}`).value;
             const newMaterials = collectMaterials(`edit-materials-${id}`);
-            if (!newSet || newMaterials.length === 0) {
-                alert('Please fill in set and at least one item');
+            if (!newSet || !newPerson || newMaterials.length === 0) {
+                console.log('Please fill in set, person, and at least one item');
                 return;
             }
             db.collection('orders').doc(id).update({
                 set: newSet,
+                person: newPerson,
                 materials: newMaterials,
                 status: 'ordered'
-            }).then(() => alert('Order approved and moved to Incoming!'))
-              .catch(error => alert('Error confirming order: ' + error.message));
+            }).catch(error => console.error('Error confirming order:', error));
         }
 
         // Update status
         function updateStatus(id, newStatus) {
             db.collection('orders').doc(id).update({ status: newStatus })
-                .then(() => alert('Status updated!'))
-                .catch(error => alert('Error updating status: ' + error.message));
+                .catch(error => console.error('Error updating status:', error));
         }
 
-        // Print order
-        function printOrder(id, set, materialsHtml, status) {
-            const printable = document.getElementById('printable-order');
-            printable.innerHTML = `
-                <h1>Lumber Order Form</h1>
-                <p><strong>Order ID:</strong> ${id}</p>
-                <p><strong>Set:</strong> ${set}</p>
-                <p><strong>Materials:</strong> ${materialsHtml}</p>
-                <p><strong>Status:</strong> ${status}</p>
-                <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            `;
-            window.print();
+        // Generate professional PDF
+        function generatePDF(id, set, person, materialsHtml, status, receivedByHtml) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text('Lumber Order Form', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(`Order ID: ${id}`, 20, 40);
+            doc.text(`Set: ${set}`, 20, 50);
+            doc.text(`Person: ${person}`, 20, 60);
+            doc.text(`Materials:`, 20, 70);
+            doc.html(materialsHtml, { x: 20, y: 75, callback: function () {
+                doc.text(`Status: ${status}`, 20, 100);
+                if (receivedByHtml) {
+                    doc.html(receivedByHtml, { x: 20, y: 110 });
+                }
+                doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 120);
+                doc.save(`Order_${id}.pdf`);
+            } });
         }
     </script>
 </body>
