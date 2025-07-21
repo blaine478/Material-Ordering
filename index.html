@@ -509,7 +509,8 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', ${JSON.stringify(data.materials.map(m => [m.quantity.toString(), m.item]))}, '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
                             }, 0);
@@ -539,7 +540,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                   <button onclick="generatePDF('${id}', '${data.set}', ${JSON.stringify(data.materials.map(m => [m.quantity.toString(), m.item]))}, '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -569,7 +570,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                   <button onclick="generatePDF('${id}', '${data.set}', ${JSON.stringify(data.materials.map(m => [m.quantity.toString(), m.item]))}, '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -660,45 +661,41 @@
             }).catch(error => console.error('Error confirming order:', error));
         }
 
-// Generate professional PDF
-function generatePDF(id, set, materialsTable, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text('Lumber Order Form', 105, 20, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text(`Set: ${set}`, 20, 40);
-    if (date) doc.text(`Date: ${date}`, 20, 50);
-    if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
-    doc.text(`Materials:`, 20, 70);
-    doc.autoTable({
-        head: [['Quantity', 'Item']],
-        body: materialsTable,
-        startY: 75,
-        styles: { cellPadding: 3, fontSize: 10, lineColor: [0, 0, 0], lineWidth: 0.1 },
-        headStyles: { fillColor: [107, 142, 35], textColor: [255, 255, 255] },
-        columnStyles: {
-            0: { cellWidth: 30, halign: 'center' },
-            1: { cellWidth: 140, halign: 'left' }
-        },
-        margin: { left: 20, right: 20 }
-    });
-    let yPos = doc.autoTable.previous.finalY + 10;
-    doc.text(`Status: ${status}`, 20, yPos);
-    yPos += 10;
-    if (receivedByHtml) {
-        const receivedBy = receivedByHtml.replace(/<[^>]+>/g, '');
-        doc.text(receivedBy, 20, yPos);
-        yPos += 10;
-    }
-    if (receivedAtHtml) {
-        const receivedAt = receivedAtHtml.replace(/<[^>]+>/g, '');
-        doc.text(receivedAt, 20, yPos);
-        yPos += 10;
-    }
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
-    doc.save(`Order_${id}.pdf`);
-}
+        // Generate professional PDF
+        function generatePDF(id, set, materialsList, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text('Lumber Order Form', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(`Set: ${set}`, 20, 40);
+            if (date) doc.text(`Date: ${date}`, 20, 50);
+            if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
+            doc.text(`Materials:`, 20, 70);
+            const materialsArray = materialsList.replace(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g, '$1, $2').split(',').map(str => str.trim()).filter(Boolean);
+            const materialsTable = [];
+            for (let i = 0; i < materialsArray.length; i += 2) {
+                materialsTable.push([materialsArray[i], materialsArray[i + 1]]);
+            }
+            doc.autoTable({
+                head: [['Quantity', 'Item']],
+                body: materialsTable,
+                startY: 75
+            });
+            let yPos = doc.autoTable.previous.finalY + 10;
+            doc.text(`Status: ${status}`, 20, yPos);
+            yPos += 10;
+            if (receivedByHtml) {
+                doc.html(receivedByHtml, { x: 20, y: yPos });
+                yPos += 10;
+            }
+            if (receivedAtHtml) {
+                doc.html(receivedAtHtml, { x: 20, y: yPos });
+                yPos += 10;
+            }
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
+            doc.save(`Order_${id}.pdf`);
+        }
     </script>
 </body>
 </html>
