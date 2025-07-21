@@ -143,10 +143,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- DOMPurify for secure HTML rendering in jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
-    <!-- html2canvas for HTML rendering in jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- jsPDF AutoTable for tables in PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -235,7 +231,7 @@
             messagingSenderId: "724575813972",
             appId: "1:724575813972:web:38aafd46ed21715b75c8c1"
         };
-
+        
         // Initialize Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -683,11 +679,13 @@
             doc.text(`Status: ${status}`, 20, yPos);
             yPos += 10;
             if (receivedByHtml) {
-                doc.html(receivedByHtml, { x: 20, y: yPos });
+                const receivedBy = receivedByHtml.replace(/<[^>]+>/g, '');
+                doc.text(receivedBy, 20, yPos);
                 yPos += 10;
             }
             if (receivedAtHtml) {
-                doc.html(receivedAtHtml, { x: 20, y: yPos });
+                const receivedAt = receivedAtHtml.replace(/<[^>]+>/g, '');
+                doc.text(receivedAt, 20, yPos);
                 yPos += 10;
             }
             doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
