@@ -143,10 +143,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- DOMPurify for secure HTML rendering in jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
-    <!-- html2canvas for HTML rendering in jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- jsPDF AutoTable for tables in PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -491,7 +487,8 @@
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         const id = doc.id;
-                        let materialsList = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
+                        let materialsHtml = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
+                        let materialsTable = data.materials.map(m => [m.quantity.toString(), m.item]);
                         let receivedByHtml = data.receivedBy ? `<p><strong>Received By:</strong> ${data.receivedBy}</p>` : '';
                         let receivedAtHtml = data.receivedAt ? `<p><strong>Received At:</strong> ${data.receivedAt.toDate().toLocaleString()}</p>` : '';
                         let dateHtml = data.orderDate ? `<p><strong>Date:</strong> ${data.orderDate}</p>` : '';
@@ -509,7 +506,7 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -522,7 +519,7 @@
                                     ${dateHtml}
                                     ${orderedFromHtml}
                                     <p><strong>Materials:</strong></p>
-                                    <ul class="materials-list">${materialsList}</ul>
+                                    <ul class="materials-list">${materialsHtml}</ul>
                                     <p><strong>Status:</strong> ${data.status}</p>
                                     <button onclick="showReceiveSection('${id}')">Received</button>
                                     <div id="receive-${id}" class="receive-section">
@@ -540,7 +537,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -555,7 +552,7 @@
                                     ${dateHtml}
                                     ${orderedFromHtml}
                                     <p><strong>Materials:</strong></p>
-                                    <ul class="materials-list">${materialsList}</ul>
+                                    <ul class="materials-list">${materialsHtml}</ul>
                                     <p><strong>Status:</strong> delivered</p>
                                     ${receivedByHtml}
                                     ${receivedAtHtml}
@@ -570,7 +567,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -662,7 +659,7 @@
         }
 
         // Generate professional PDF
-        function generatePDF(id, set, materialsList, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
+        function generatePDF(id, set, status, receivedByHtml, date, receivedAtHtml, orderedFrom, materialsTable) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(18);
@@ -672,11 +669,6 @@
             if (date) doc.text(`Date: ${date}`, 20, 50);
             if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
             doc.text(`Materials:`, 20, 70);
-            const materialsArray = materialsList.replace(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g, '$1, $2').split(',').map(str => str.trim()).filter(Boolean);
-            const materialsTable = [];
-            for (let i = 0; i < materialsArray.length; i += 2) {
-                materialsTable.push([materialsArray[i], materialsArray[i + 1]]);
-            }
             doc.autoTable({
                 head: [['Quantity', 'Item']],
                 body: materialsTable,
@@ -686,11 +678,13 @@
             doc.text(`Status: ${status}`, 20, yPos);
             yPos += 10;
             if (receivedByHtml) {
-                doc.html(receivedByHtml, { x: 20, y: yPos });
+                const receivedBy = receivedByHtml.replace(/<[^>]+>/g, '');
+                doc.text(receivedBy, 20, yPos);
                 yPos += 10;
             }
             if (receivedAtHtml) {
-                doc.html(receivedAtHtml, { x: 20, y: yPos });
+                const receivedAt = receivedAtHtml.replace(/<[^>]+>/g, '');
+                doc.text(receivedAt, 20, yPos);
                 yPos += 10;
             }
             doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
