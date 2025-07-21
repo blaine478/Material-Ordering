@@ -506,7 +506,7 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -537,7 +537,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -567,7 +567,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${data.set}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -659,7 +659,7 @@
         }
 
         // Generate professional PDF
-        function generatePDF(set, status, receivedByHtml, date, receivedAtHtml, orderedFrom, materialsTable) {
+        function generatePDF(id, set, status, receivedByHtml, date, receivedAtHtml, orderedFrom, materialsTable) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(18);
@@ -672,12 +672,7 @@
             doc.autoTable({
                 head: [['Quantity', 'Item']],
                 body: materialsTable,
-                startY: 75,
-                styles: { cellPadding: 2, fontSize: 10 },
-                columnStyles: {
-                    0: { cellWidth: 30 },
-                    1: { cellWidth: 140 }
-                }
+                startY: 75
             });
             let yPos = doc.autoTable.previous.finalY + 10;
             doc.text(`Status: ${status}`, 20, yPos);
@@ -693,7 +688,7 @@
                 yPos += 10;
             }
             doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
-            doc.save(`Order_${set.replace(/\s+/g, '_')}.pdf`);
+            doc.save(`Order_${id}.pdf`);
         }
     </script>
 </body>
