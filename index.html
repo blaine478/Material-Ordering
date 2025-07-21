@@ -665,9 +665,9 @@
         function generatePDF(id, set, materialsList, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.setFontSize(22);
+            doc.setFontSize(18);
             doc.text('Lumber Order Form', 105, 20, { align: 'center' });
-            doc.setFontSize(16);
+            doc.setFontSize(12);
             doc.text(`Set: ${set}`, 20, 40);
             if (date) doc.text(`Date: ${date}`, 20, 50);
             if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
@@ -699,4 +699,3 @@
     </script>
 </body>
 </html>
-
