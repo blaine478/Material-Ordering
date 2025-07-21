@@ -667,7 +667,7 @@
             const doc = new jsPDF();
             doc.setFontSize(18);
             doc.text('Lumber Order Form', 105, 20, { align: 'center' });
-            doc.setFontSize(18);
+            doc.setFontSize(12);
             doc.text(`Set: ${set}`, 20, 40);
             if (date) doc.text(`Date: ${date}`, 20, 50);
             if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
@@ -684,7 +684,7 @@
             });
             let yPos = doc.autoTable.previous.finalY + 10;
             doc.text(`Status: ${status}`, 20, yPos);
-            yPos += 15;
+            yPos += 10;
             if (receivedByHtml) {
                 doc.html(receivedByHtml, { x: 20, y: yPos });
                 yPos += 10;
