@@ -661,41 +661,38 @@
             }).catch(error => console.error('Error confirming order:', error));
         }
 
-        // Generate professional PDF
-        function generatePDF(id, set, materialsList, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFontSize(18);
-            doc.text('Lumber Order Form', 105, 20, { align: 'center' });
-            doc.setFontSize(12);
-            doc.text(`Set: ${set}`, 20, 40);
-            if (date) doc.text(`Date: ${date}`, 20, 50);
-            if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
-            doc.text(`Materials:`, 20, 70);
-            const materialsArray = materialsList.replace(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g, '$1, $2').split(',').map(str => str.trim()).filter(Boolean);
-            const materialsTable = [];
-            for (let i = 0; i < materialsArray.length; i += 2) {
-                materialsTable.push([materialsArray[i], materialsArray[i + 1]]);
-            }
-            doc.autoTable({
-                head: [['Quantity', 'Item']],
-                body: materialsTable,
-                startY: 75
-            });
-            let yPos = doc.autoTable.previous.finalY + 10;
-            doc.text(`Status: ${status}`, 20, yPos);
-            yPos += 10;
-            if (receivedByHtml) {
-                doc.html(receivedByHtml, { x: 20, y: yPos });
-                yPos += 10;
-            }
-            if (receivedAtHtml) {
-                doc.html(receivedAtHtml, { x: 20, y: yPos });
-                yPos += 10;
-            }
-            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
-            doc.save(`Order_${id}.pdf`);
-        }
+// Generate professional PDF
+function generatePDF(id, set, materialsList, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Lumber Order Form', 105, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`Set: ${set}`, 20, 40);
+    if (date) doc.text(`Date: ${date}`, 20, 50);
+    if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
+    doc.text(`Materials:`, 20, 70);
+    const matches = materialsList.matchAll(/<strong>(.+?)<\/strong> x (.+?)<\/li>/g);
+    const materialsTable = Array.from(matches, m => [m[1], m[2]]);
+    doc.autoTable({
+        head: [['Quantity', 'Item']],
+        body: materialsTable,
+        startY: 75
+    });
+    let yPos = doc.autoTable.previous.finalY + 10;
+    doc.text(`Status: ${status}`, 20, yPos);
+    yPos += 10;
+    if (receivedByHtml) {
+        doc.html(receivedByHtml, { x: 20, y: yPos });
+        yPos += 10;
+    }
+    if (receivedAtHtml) {
+        doc.html(receivedAtHtml, { x: 20, y: yPos });
+        yPos += 10;
+    }
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPos);
+    doc.save(`Order_${id}.pdf`);
+}
     </script>
 </body>
 </html>
