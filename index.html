@@ -228,12 +228,12 @@
     <script>
         // Firebase config
         const firebaseConfig = {
-            apiKey: "AIzaSyDqX2FxWdQ_OA903Mh2FWm4qFsYNzudv1I",
-            authDomain: "asset-manager-ffc9f.firebaseapp.com",
-            projectId: "asset-manager-ffc9f",
-            storageBucket: "asset-manager-ffc9f.firebasestorage.app",
-            messagingSenderId: "724575813972",
-            appId: "1:724575813972:web:38aafd46ed21715b75c8c1"
+            apiKey: "AIzaSyCRbUS6L7O4I_gGaaCmCyHi7wt_WgMwZFc",
+            authDomain: "set-hardware.firebaseapp.com",
+            projectId: "set-hardware",
+            storageBucket: "set-hardware.firebasestorage.app",
+            messagingSenderId: "613195230835",
+            appId: "1:613195230835:web:f962ec1e142178976ec406"
         };
 
         // Initialize Firebase
@@ -491,7 +491,8 @@
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         const id = doc.id;
-                        let materialsList = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
+                        let materialsHtml = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
+                        let materialsTable = data.materials.map(m => [m.quantity.toString(), m.item]);
                         let receivedByHtml = data.receivedBy ? `<p><strong>Received By:</strong> ${data.receivedBy}</p>` : '';
                         let receivedAtHtml = data.receivedAt ? `<p><strong>Received At:</strong> ${data.receivedAt.toDate().toLocaleString()}</p>` : '';
                         let dateHtml = data.orderDate ? `<p><strong>Date:</strong> ${data.orderDate}</p>` : '';
@@ -509,7 +510,7 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -522,7 +523,7 @@
                                     ${dateHtml}
                                     ${orderedFromHtml}
                                     <p><strong>Materials:</strong></p>
-                                    <ul class="materials-list">${materialsList}</ul>
+                                    <ul class="materials-list">${materialsHtml}</ul>
                                     <p><strong>Status:</strong> ${data.status}</p>
                                     <button onclick="showReceiveSection('${id}')">Received</button>
                                     <div id="receive-${id}" class="receive-section">
@@ -540,7 +541,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -555,7 +556,7 @@
                                     ${dateHtml}
                                     ${orderedFromHtml}
                                     <p><strong>Materials:</strong></p>
-                                    <ul class="materials-list">${materialsList}</ul>
+                                    <ul class="materials-list">${materialsHtml}</ul>
                                     <p><strong>Status:</strong> delivered</p>
                                     ${receivedByHtml}
                                     ${receivedAtHtml}
@@ -570,7 +571,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsList}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -672,11 +673,8 @@
             if (date) doc.text(`Date: ${date}`, 20, 50);
             if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
             doc.text(`Materials:`, 20, 70);
-            const materialsArray = materialsList.replace(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g, '$1, $2').split(',').map(str => str.trim()).filter(Boolean);
-            const materialsTable = [];
-            for (let i = 0; i < materialsArray.length; i += 2) {
-                materialsTable.push([materialsArray[i], materialsArray[i + 1]]);
-            }
+            const matches = materialsList.matchAll(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g);
+            const materialsTable = Array.from(matches, m => [m[1], m[2]]);
             doc.autoTable({
                 head: [['Quantity', 'Item']],
                 body: materialsTable,
