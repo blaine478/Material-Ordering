@@ -672,8 +672,17 @@ function generatePDF(id, set, materialsList, status, receivedByHtml, date, recei
     if (date) doc.text(`Date: ${date}`, 20, 50);
     if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
     doc.text(`Materials:`, 20, 70);
-    const matches = materialsList.matchAll(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g);
-    const materialsTable = Array.from(matches, m => [m[1], m[2].trim()]);
+const materialsTable = [];
+const liItems = materialsList.split('<li>');
+for (let i = 1; i < liItems.length; i++) {
+    const li = liItems[i].replace('</li>', '');
+    const parts = li.split(' x ');
+    if (parts.length === 2) {
+        const quantity = parts[0].replace('<strong>', '').replace('</strong>', '');
+        const item = parts[1];
+        materialsTable.push([quantity, item]);
+    }
+}
     doc.autoTable({
         head: [['Quantity', 'Item']],
         body: materialsTable,
