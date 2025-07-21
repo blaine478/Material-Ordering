@@ -143,10 +143,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- DOMPurify for secure HTML rendering in jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
-    <!-- html2canvas for HTML rendering in jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- jsPDF AutoTable for tables in PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -228,12 +224,12 @@
     <script>
         // Firebase config
         const firebaseConfig = {
-            apiKey: "AIzaSyCRbUS6L7O4I_gGaaCmCyHi7wt_WgMwZFc",
-            authDomain: "set-hardware.firebaseapp.com",
-            projectId: "set-hardware",
-            storageBucket: "set-hardware.firebasestorage.app",
-            messagingSenderId: "613195230835",
-            appId: "1:613195230835:web:f962ec1e142178976ec406"
+            apiKey: "AIzaSyDqX2FxWdQ_OA903Mh2FWm4qFsYNzudv1I",
+            authDomain: "asset-manager-ffc9f.firebaseapp.com",
+            projectId: "asset-manager-ffc9f",
+            storageBucket: "asset-manager-ffc9f.firebasestorage.app",
+            messagingSenderId: "724575813972",
+            appId: "1:724575813972:web:38aafd46ed21715b75c8c1"
         };
 
         // Initialize Firebase
@@ -492,7 +488,6 @@
                         const data = doc.data();
                         const id = doc.id;
                         let materialsHtml = data.materials.map(m => `<li><strong>${m.quantity}</strong> x ${m.item}</li>`).join('');
-                        let materialsTable = data.materials.map(m => [m.quantity.toString(), m.item]);
                         let receivedByHtml = data.receivedBy ? `<p><strong>Received By:</strong> ${data.receivedBy}</p>` : '';
                         let receivedAtHtml = data.receivedAt ? `<p><strong>Received At:</strong> ${data.receivedAt.toDate().toLocaleString()}</p>` : '';
                         let dateHtml = data.orderDate ? `<p><strong>Date:</strong> ${data.orderDate}</p>` : '';
@@ -510,7 +505,7 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsHtml}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -541,7 +536,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsHtml}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -571,7 +566,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}', ${JSON.stringify(materialsTable)})">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsHtml}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -673,8 +668,16 @@
             if (date) doc.text(`Date: ${date}`, 20, 50);
             if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
             doc.text(`Materials:`, 20, 70);
-            const matches = materialsList.matchAll(/<li><strong>(.+?)<\/strong> x (.+?)<\/li>/g);
-            const materialsTable = Array.from(matches, m => [m[1], m[2]]);
+            const materialsTable = [];
+            const liItems = materialsList.split('<li>');
+            for (let i = 1; i < liItems.length; i++) {
+                const li = liItems[i].replace('</li>', '').trim();
+                const quantityMatch = li.match(/<strong>(.+?)<\/strong>/);
+                const item = li.split(' x ')[1] || '';
+                if (quantityMatch) {
+                    materialsTable.push([quantityMatch[1], item]);
+                }
+            }
             doc.autoTable({
                 head: [['Quantity', 'Item']],
                 body: materialsTable,
