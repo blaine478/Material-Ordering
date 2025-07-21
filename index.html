@@ -506,7 +506,7 @@
                                     <button onclick="addRow('edit-materials-${id}')">Add Item Row</button>
                                     <button onclick="confirmOrder('${id}')">Confirm</button>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsTableJSON}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', ${materialsTableJSON}, '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-${id}`, m.quantity, m.item));
@@ -537,7 +537,7 @@
                                         <button onclick="saveEdit('${id}', 'incoming')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsTableJSON}', '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', ${materialsTableJSON}, '${data.status}', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 if (data.status === 'ordered' || data.status === 'in shipment') {
@@ -567,7 +567,7 @@
                                         <button onclick="saveEdit('${id}', 'history')">Save</button>
                                     </div>
                                     <button onclick="deleteOrder('${id}')">Delete</button>
-                                    <button onclick="generatePDF('${id}', '${data.set}', '${materialsTableJSON}', 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
+                                    <button onclick="generatePDF('${id}', '${data.set}', ${materialsTableJSON}, 'delivered', '${receivedByHtml}', '${data.orderDate || ''}', '${receivedAtHtml}', '${data.orderedFrom || ''}')">Print PDF</button>
                                 </div>`;
                             setTimeout(() => {
                                 data.materials.forEach(m => addRow(`edit-materials-hist-${id}`, m.quantity, m.item));
@@ -659,7 +659,7 @@
         }
 
         // Generate professional PDF
-        function generatePDF(id, set, materialsTableJSON, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
+        function generatePDF(id, set, materialsTable, status, receivedByHtml, date, receivedAtHtml, orderedFrom) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(18);
@@ -669,7 +669,6 @@
             if (date) doc.text(`Date: ${date}`, 20, 50);
             if (orderedFrom) doc.text(`Ordered From: ${orderedFrom}`, 20, 60);
             doc.text(`Materials:`, 20, 70);
-            const materialsTable = JSON.parse(materialsTableJSON);
             doc.autoTable({
                 head: [['Quantity', 'Item']],
                 body: materialsTable,
